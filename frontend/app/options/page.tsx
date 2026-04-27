@@ -3,10 +3,35 @@
 import React, { useState, useEffect } from 'react';
 import './options.css';
 
-function SuggestionCard({ s, onAccept }: { s: any, onAccept: (id: string, shares: number) => void }) {
+type OptionSuggestion = {
+    id: string;
+    ticker: string;
+    suggestion_type: 'COVERED_CALL' | 'CASH_PUT' | 'CASH_SECURED_PUT';
+    option_display_code: string | null;
+    option_symbol_raw: string | null;
+    option_symbol?: string;
+    strike: number | null;
+    expiration_date: string | null;
+    dte: number | null;
+    premium: number | null;
+    delta: number | null;
+    contracts: number;
+    overlay_score: number;
+    reason_summary: string | null;
+    risk_summary: string | null;
+};
+
+function formatExpirationDate(expirationDate: string | null) {
+    if (!expirationDate) return 'Vencimento indisponível';
+    return new Date(`${expirationDate}T00:00:00`).toLocaleDateString('pt-BR');
+}
+
+function SuggestionCard({ s, onAccept }: { s: OptionSuggestion, onAccept: (id: string, shares: number) => void }) {
     const [shares, setShares] = useState(s.contracts * 100 || 100);
     const premiumUnit = s.premium || 0;
     const totalPremium = (shares * premiumUnit).toFixed(2);
+    const optionCode = s.option_display_code || s.option_symbol || '---';
+    const optionReference = s.option_symbol_raw || s.option_symbol || '---';
 
     return (
         <div className="suggestion-card">
@@ -17,13 +42,13 @@ function SuggestionCard({ s, onAccept }: { s: any, onAccept: (id: string, shares
                 </div>
             </div>
             <div className="card-body">
-                <p style={{fontSize: '1.2rem'}}>Opção: <strong>{s.option_display_code}</strong></p>
+                <p style={{fontSize: '1.2rem'}}>Opção: <strong>{optionCode}</strong></p>
                 <p style={{fontSize: '0.8rem', color: 'var(--muted)', marginTop: '-8px', marginBottom: '12px'}}>
-                    Ref: {s.option_symbol_raw}
+                    Ref: {optionReference}
                 </p>
                 <div className="card-metrics-grid">
                     <p>Strike: <strong>R$ {s.strike?.toFixed(2) || '---'}</strong></p>
-                    <p>Vencimento: <strong>{s.expiration_date ? new Date(s.expiration_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Vencimento indisponível'}</strong></p>
+                    <p>Vencimento: <strong>{formatExpirationDate(s.expiration_date)}</strong></p>
                     <p>DTE: <strong style={{color: s.dte != null && s.dte <= 21 ? 'var(--warning)' : 'inherit'}}>{s.dte != null ? `${s.dte} dias` : 'DTE indisponível'}</strong></p>
                     <p>Prêmio Est.: <strong>R$ {s.premium?.toFixed(2) || '---'}</strong></p>
                     <p>Delta: <strong>{s.delta?.toFixed(2) || '---'}</strong></p>
@@ -67,7 +92,7 @@ function SuggestionCard({ s, onAccept }: { s: any, onAccept: (id: string, shares
 
 export default function OptionsPage() {
     const [monitored, setMonitored] = useState<any[]>([]);
-    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [suggestions, setSuggestions] = useState<OptionSuggestion[]>([]);
     const [activeTab, setActiveTab] = useState<'CC' | 'CSP'>('CC');
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<string>('');
@@ -113,8 +138,10 @@ export default function OptionsPage() {
         fetchData();
     }, []);
 
-    const filteredSuggestions = suggestions.filter(s => 
-        s.suggestion_type === (activeTab === 'CC' ? 'COVERED_CALL' : 'CASH_PUT')
+    const filteredSuggestions = suggestions.filter(s =>
+        activeTab === 'CC'
+            ? s.suggestion_type === 'COVERED_CALL'
+            : s.suggestion_type === 'CASH_PUT' || s.suggestion_type === 'CASH_SECURED_PUT'
     );
 
     return (
@@ -219,7 +246,7 @@ export default function OptionsPage() {
 
                 <div className="options-grid">
                     {filteredSuggestions.map((s, idx) => (
-                        <SuggestionCard key={idx} s={s} onAccept={acceptSuggestion} />
+                        <SuggestionCard key={s.id} s={s} onAccept={acceptSuggestion} />
                     ))}
                     {filteredSuggestions.length === 0 && (
                         <div style={{gridColumn: '1/-1', padding: '3rem', textAlign: 'center', color: 'var(--muted)', background: 'var(--bg-card)', borderRadius: '12px'}}>

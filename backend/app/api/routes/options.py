@@ -24,6 +24,29 @@ class PolicyUpdate(BaseModel):
     min_bid: Optional[float] = None
     max_spread_pct: Optional[float] = None
 
+def serialize_suggestion(suggestion, today: date) -> Dict[str, Any]:
+    return {
+        "id": suggestion.id,
+        "ticker": suggestion.ticker,
+        "suggestion_type": suggestion.suggestion_type,
+        "option_symbol": suggestion.option_symbol,
+        "option_display_code": suggestion.option_display_code,
+        "option_symbol_raw": suggestion.option_symbol_raw,
+        "strike": suggestion.strike,
+        "expiration_date": suggestion.expiration_date,
+        "dte": (suggestion.expiration_date - today).days,
+        "premium": suggestion.premium,
+        "delta": suggestion.delta,
+        "contracts": suggestion.contracts,
+        "capital_required": suggestion.capital_required,
+        "effective_entry_price": suggestion.effective_entry_price,
+        "overlay_score": suggestion.overlay_score,
+        "status": suggestion.status,
+        "reason_summary": suggestion.reason_summary,
+        "risk_summary": suggestion.risk_summary,
+        "created_at": suggestion.created_at,
+    }
+
 @router.get("/chains/{ticker}")
 def get_option_chain(ticker: str, db: Session = Depends(get_db)):
     service = OptionsChainService(db)
@@ -54,44 +77,25 @@ def update_policy(data: PolicyUpdate, db: Session = Depends(get_db)):
 def get_all_suggestions(db: Session = Depends(get_db)):
     repo = OptionsRepository(db)
     sugs = repo.get_suggestions()
-    
-    # Calculate DTE on the fly
+
     today = date.today()
-    result = []
-    for s in sugs:
-        d = s.__dict__.copy()
-        if "_sa_instance_state" in d: del d["_sa_instance_state"]
-        d["dte"] = (s.expiration_date - today).days
-        result.append(d)
-    return result
+    return [serialize_suggestion(s, today) for s in sugs]
 
 @router.get("/suggestions/covered-calls")
 def get_covered_calls(db: Session = Depends(get_db)):
     repo = OptionsRepository(db)
     sugs = repo.get_suggestions(suggestion_type="COVERED_CALL")
-    
+
     today = date.today()
-    result = []
-    for s in sugs:
-        d = s.__dict__.copy()
-        if "_sa_instance_state" in d: del d["_sa_instance_state"]
-        d["dte"] = (s.expiration_date - today).days
-        result.append(d)
-    return result
+    return [serialize_suggestion(s, today) for s in sugs]
 
 @router.get("/suggestions/cash-puts")
 def get_cash_put_suggestions(db: Session = Depends(get_db)):
     repo = OptionsRepository(db)
     sugs = repo.get_suggestions(suggestion_type="CASH_PUT")
-    
+
     today = date.today()
-    result = []
-    for s in sugs:
-        d = s.__dict__.copy()
-        if "_sa_instance_state" in d: del d["_sa_instance_state"]
-        d["dte"] = (s.expiration_date - today).days
-        result.append(d)
-    return result
+    return [serialize_suggestion(s, today) for s in sugs]
 
 @router.post("/suggestions/{suggestion_id}/accept")
 def accept_suggestion(suggestion_id: str, custom_shares: Optional[int] = None, db: Session = Depends(get_db)):

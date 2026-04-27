@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronLeft, TrendingUp, AlertTriangle, Target, BarChart3, ArrowUpRight, Info } from 'lucide-react';
 
-const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
+const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 async function getUpsideDetail(ticker: string) {
   try {
